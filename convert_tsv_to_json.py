@@ -19,16 +19,16 @@ input = 'dnsm-json-database/sabdab_summary_2024-01-26_abid_info.tsv'
 columns = ['pdbid', 'abid', 'ja', 'jb', 'va', 'vb']
 
 df = pd.read_csv(args.input_file, sep='\t')
-if args.column:
-    columns = args.column.split(",")
-df = df[columns]
 if args.filter:
     filters = [x.split("=") for x in args.filter.split(",")]
     for filter in filters:
         df = df[df[filter[0]] == filter[1]]
+if args.column:
+    columns = args.column.split(",")
+df = df[columns]
 
-json_data = json.loads(df[1:5].to_json(orient='records'))
+json_data = json.loads(df[1:5].to_json())
 print(json.dumps(json_data, indent=2))
 
 if args.output_file:
-    df.to_json(args.output_file, orient='records')
+    df.to_json(args.output_file)
