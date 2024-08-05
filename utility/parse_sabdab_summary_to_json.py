@@ -4,6 +4,7 @@ import pandas as pd
 import argparse
 import pprint as pp
 import json
+import glob
 from sabdab_utility import *
 
 
@@ -33,6 +34,12 @@ def string_to_dict(my_str):
 
 
 # default args
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+INPUT_PATH = f'{SCRIPT_DIR}/../_output/sabdab_summary_for_dnsm.tsv'
+OUTPUT_PATH = f'{SCRIPT_DIR}/../_output/sabdab_summary_for_dnsm.json'
+LOG_PATH = f'{SCRIPT_DIR}/../_output/dnsm_temp/log.dnsm_pipeline.txt'
+JSON_DIR = f'{SCRIPT_DIR}/../_output/dnsm_output'
+
 COLUMNS = ['pdbid', 'abid', 'organism', 'ja', 'jb', 'va', 'vb']
 RENAME = {'ja': 'jl', 'jb': 'jh', 'va': 'vl', 'vb': 'vh'}
 # orientation: (split | records | index | columns | values)
@@ -42,16 +49,21 @@ COLUMNS = list_to_string(COLUMNS)
 RENAME = dict_to_string(RENAME)
 
 # file data
-LOGFILE_HEADER = ['']
-ACCEPTABLE_STATUS = ['success', 'error:']
+LOG_HEADER = ['id', 'jobid', 'pdbid', 'abid', 'status', 'match', 'miss']
+ACCEPTABLE_STATUSES = ['success', 'error:']
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Converts sabdab summary tsv file to a json file.')
-    parser.add_argument('--input-path', '-i', help='input sabdab summary file')
-    parser.add_argument('--output-path', '-o', help='output json file')
-    parser.add_argument('--log-path', '-l', help='logfile ')
+    parser.add_argument('--input-path', '-i',
+                        default=INPUT_PATH, help='input sabdab summary file')
+    parser.add_argument('--output-path', '-o',
+                        default=OUTPUT_PATH, help='output json file')
+    parser.add_argument('--log-path', default=LOG_PATH,
+                        help='path to dnsm logfile')
+    parser.add_argument('--json-dir', default=JSON_DIR,
+                        help='path to dnsm output directory')
     parser.add_argument(
         '--column', '-c', default=COLUMNS, help='list of fields to output. default: ALL')
     parser.add_argument(
@@ -68,7 +80,6 @@ def parse_args():
         args.filters = string_to_list(args.filters)
     if args.rename:
         args.rename = string_to_dict(args.rename)
-
     return args
 
 
@@ -81,15 +92,8 @@ def main(args):
     }
 
     df = pd.read_csv(args.input_path, sep='\t')
-
-    # filter by queries
-    if args.filter:
-        for filter in args.filters:
-            df = df[df[filter[0]] == filter[1]]
-
-    # filter down columns
-    df = df[args.columns]
-    print(f'sabdf: {len(df)}')
+    df_init = df.copy()
+    print(f'df: {len(df)}')
 
     # get all types of genes
     for gene in gene_dict:
@@ -97,6 +101,32 @@ def main(args):
             gene_dict[gene] += gene_list.split(',')
         gene_dict[gene] = set(gene_dict[gene])
         print(f'gene: {gene} {len(gene_dict[gene])} {gene_dict[gene]}')
+
+    # get all types of errors
+    if args.log_path:
+        log_df = pd.read_csv(args.log_path, names=LOG_HEADER, sep=' ')
+        statuses = set(log_df.status)
+        print(f'log_statuses: {statuses}')
+
+    # filter by queries
+    if args.filter:
+        for filter in args.filters:
+            df = df[df[filter[0]] == filter[1]]
+    print(f'filter_by_query: {len(df)}')
+
+    # filter by json that dont exist in output
+    json_paths = glob.glob(f'{args.json_dir}/????-combined.ALL.json')
+    pdbids_json = [x.replace(
+        f'{args.json_dir}/', '').replace(f'-combined.ALL.json', '') for x in json_paths]
+    df = df[df.pdbid.isin(pdbids_json)]
+    print(f'filter_by_jsons: {len(df)}')
+
+    # filter by log status
+    if args.log_path:
+        log_df = log_df[log_df.status.isin(ACCEPTABLE_STATUSES)]
+        pbdids_status = set(log_df.pdbid)
+        df = df[df.pdbid.isin(pbdids_status)]
+        print(f'filter_by_status: {len(df)}')
 
     # assert that all pdbids have same genes
     pdbids = set(df.pdbid)
@@ -113,21 +143,18 @@ def main(args):
                     f'col_values do not match for pdbid: {pdbid} {col} {len(col_values)} {col_values}', color=colors.RED)
                 # exit()
 
+    # filter down columns
+    df = df[args.columns]
     # rename columns
     if args.rename:
         print('rename:', args.rename)
         df = df.rename(columns=args.rename)
 
-    # clean up pdbids fail cases from log
-    # if args.log_path:
-    log_df = pd.read_csv()
-    statuses = set(log_df.status)
-    print('log_statuses: {statuses}')
-
     # drop duplicate pdbids
-    df = df.drop_duplicates(subset='pdbid', keep='first')
+    drop_df = df.drop_duplicates(subset='pdbid', keep='first')
+    # assert len(drop_df) == len(df)
 
-    # examples
+    # short example
     json_data = json.loads(df.to_json(orient=args.orient))
     print(f'json_data: {len(json_data)}')
     json_data = json.loads(df[0:5].to_json(orient=args.orient))
