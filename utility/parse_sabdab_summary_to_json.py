@@ -37,6 +37,9 @@ def string_to_dict(my_str):
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 INPUT_PATH = f'{SCRIPT_DIR}/../_output/sabdab_summary_for_dnsm.tsv'
 OUTPUT_PATH = f'{SCRIPT_DIR}/../_output/sabdab_summary_for_dnsm.json'
+OG_SABDAB_1_PATH = f'{SCRIPT_DIR}/../_output/sabdab_temp/sabdab/sabdab_summary.1.tsv'
+OG_SABDAB_2_PATH = f'{SCRIPT_DIR}/../_output/sabdab_temp/sabdab/sabdab_summary.2.tsv'
+OG_SABDAB_PATH = OG_SABDAB_2_PATH
 LOG_PATH = f'{SCRIPT_DIR}/../_output/dnsm_temp/log.dnsm_pipeline.txt'
 JSON_DIR = f'{SCRIPT_DIR}/../_output/dnsm_output'
 
@@ -50,7 +53,8 @@ RENAME = dict_to_string(RENAME)
 
 # file data
 LOG_HEADER = ['id', 'jobid', 'pdbid', 'abid', 'status', 'match', 'miss']
-ACCEPTABLE_STATUSES = ['success', 'error:']
+# ACCEPTABLE_STATUSES = ['success']
+ACCEPTABLE_STATUSES = ['success', 'error:seq_structure_mismatch']
 
 
 def parse_args():
@@ -62,6 +66,8 @@ def parse_args():
                         default=OUTPUT_PATH, help='output json file')
     parser.add_argument('--log-path', default=LOG_PATH,
                         help='path to dnsm logfile')
+    parser.add_argument('--og-sabdab-path', default=OG_SABDAB_PATH,
+                        help='path to original sabdab summary file')
     parser.add_argument('--json-dir', default=JSON_DIR,
                         help='path to dnsm output directory')
     parser.add_argument(
@@ -93,7 +99,8 @@ def main(args):
 
     df = pd.read_csv(args.input_path, sep='\t')
     df_init = df.copy()
-    print(f'df: {len(df)}')
+    print(f'FINAL:: len: {len(df)}')
+    print(f'FINAL:: pdbids: {len(set(df.pdbid))}, abids: {len(set(df.abid))}')
 
     # get all types of genes
     for gene in gene_dict:
@@ -130,7 +137,6 @@ def main(args):
 
     # assert that all pdbids have same genes
     pdbids = set(df.pdbid)
-    print(f'pdbids: {len(pdbids)}')
     for pdbid in pdbids:
         filter_df = df[df.pdbid == pdbid]
         for col in ['organism', 'ja', 'jb', 'va', 'vb']:
@@ -147,7 +153,6 @@ def main(args):
     df = df[args.columns]
     # rename columns
     if args.rename:
-        print('rename:', args.rename)
         df = df.rename(columns=args.rename)
 
     # drop duplicate pdbids
@@ -160,7 +165,13 @@ def main(args):
     json_data = json.loads(df[0:5].to_json(orient=args.orient))
     print(json.dumps(json_data, indent=2))
 
-    if args.output_file:
+    # compare to original sabdab file
+    og_df1 = pd.read_table(args.og_sabdab_path)
+    print(f'SABDAB_1:: pdbids: {len(set(og_df1.pdbid))}')
+    print(f'FINAL:: pdbids: {len(set(df.pdbid))}, abids: {len(set(df.abid))}')
+
+    # write final output
+    if args.output_path:
         df.to_json(args.output_path, orient=args.orient)
 
 
