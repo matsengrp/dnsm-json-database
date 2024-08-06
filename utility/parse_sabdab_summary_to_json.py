@@ -102,12 +102,18 @@ def main(args):
     print(f'FINAL:: len: {len(df)}')
     print(f'FINAL:: pdbids: {len(set(df.pdbid))}, abids: {len(set(df.abid))}')
 
+    # get number of different values
+    organisms = set(df.organism)
+    pdbids = set(df.pdbid)
+    abids = set(df.abid)
+    print(f'organisms: {len(organisms)} {organisms}')
+
     # get all types of genes
     for gene in gene_dict:
         for gene_list in df[gene]:
             gene_dict[gene] += gene_list.split(',')
         gene_dict[gene] = set(gene_dict[gene])
-        print(f'gene: {gene} {len(gene_dict[gene])} {gene_dict[gene]}')
+        print(f'{gene}_genes: {len(gene_dict[gene])} {gene_dict[gene]}')
 
     # get all types of errors
     if args.log_path:
@@ -156,7 +162,7 @@ def main(args):
         df = df.rename(columns=args.rename)
 
     # drop duplicate pdbids
-    drop_df = df.drop_duplicates(subset='pdbid', keep='first')
+    # drop_df = df.drop_duplicates(subset='pdbid', keep='first')
     # assert len(drop_df) == len(df)
 
     # short example
@@ -168,7 +174,14 @@ def main(args):
     # compare to original sabdab file
     og_df1 = pd.read_table(args.og_sabdab_path)
     print(f'SABDAB_1:: pdbids: {len(set(og_df1.pdbid))}')
+
     print(f'FINAL:: pdbids: {len(set(df.pdbid))}, abids: {len(set(df.abid))}')
+    human_df = df[df.organism == 'human_ig']
+    print(
+        f'FINAL_HUMAN:: pdbids: {len(set(human_df.pdbid))}, abids: {len(set(human_df.abid))}')
+    mouse_df = df[df.organism == 'mouse_ig']
+    print(
+        f'FINAL_MOUSE:: pdbids: {len(set(mouse_df.pdbid))}, abids: {len(set(mouse_df.abid))}')
 
     # write final output
     if args.output_path:
