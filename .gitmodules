@@ -1,4 +1,0 @@
-[submodule "dnsm"]
-	path = dnsm
-	url = git@github.com:matsengrp/dnsm-experiments-1.git
-	branch = 2-dnsm-pipeline
