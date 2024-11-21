@@ -1,0 +1,5 @@
+_ignore
+_output
+command_log.*.txt
+.nfs*
+__pycache__
