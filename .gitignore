@@ -1,0 +1,4 @@
+_*/
+command_log.*.txt
+.nfs*
+__pycache__
