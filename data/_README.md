@@ -1,0 +1,5 @@
+- Descriptions of Databases:
+  - ignore.dnsm.old-4
+    - This database contains jsons generated using PDBs from OPIG using IMGT numbering scheme (pos 1-129)
+  - ignore.dnsm.old-3
+    - This database contains jsons generated using PDBs from RCSB  
